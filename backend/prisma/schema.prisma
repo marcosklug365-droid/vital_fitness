@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  }
+
+// ENUMS
+enum Role {
+  dueno
+  entrenador
+}
+
+enum EstadoMembresia {
+  activa
+  vencida
+  suspendida
+}
+
+enum MedioPago {
+  efectivo
+  transferencia
+  tarjeta_de_debito
+}
+
+enum DiaSemana {
+  lunes
+  martes
+  miercoles
+  jueves
+  viernes
+  sabado
+  domingo
+}
+
+enum EstadoInscripcion {
+  confirmada
+  cancelada
+}
+
+// TABLAS
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  apellido  String
+  email     String   @unique
+  password  String
+  rol       Role
+  activo    Boolean  @default(true)
+  creadoEn  DateTime @default(now())
+
+  clases    Clase[]
+  asistencias Asistencia[]
+}
+
+model Cliente {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  apellido  String
+  dni       String   @unique
+  telefono  String?
+  email     String?
+  fechaNacimiento DateTime?
+  direccion  String?
+  contactoDeEmergencia String?
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  
+  membresias Membresia[]
+  pagos     Pago[]
+  inscripciones Inscripcion[]
+  asistencias Asistencia[]
+}
+
+model Plan{
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  precio      Decimal
+  duracionDias Int
+  activo      Boolean  @default(true)
+
+  membresias Membresia[]
+}
+
+model Membresia {
+  id          Int      @id @default(autoincrement())
+  clienteId   Int
+  planId      Int
+  fechaInicio DateTime
+  fechaVencimiento    DateTime
+  estado       EstadoMembresia @default(activa)
+  createdAt    DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  plan    Plan    @relation(fields: [planId], references: [id])
+  pagos  Pago[]
+}
+
+model Pago {
+  id          Int      @id @default(autoincrement())
+  clienteId   Int
+  membresiaId Int
+  monto       Decimal
+  medioPago   MedioPago
+  fechaPago   DateTime @default(now())
+  observaciones String?
+  createdAt   DateTime @default(now())
+
+  cliente    Cliente    @relation(fields: [clienteId], references: [id])
+  membresia  Membresia  @relation(fields: [membresiaId], references: [id])
+}
+
+model Clase {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  instructorId Int
+  diaSemana   DiaSemana
+  horaInicio  String
+  horaFin     String
+  capacidadMaxima   Int
+  activa      Boolean  @default(true)
+
+  instructor Usuario @relation(fields: [instructorId], references: [id])
+  inscripciones Inscripcion[]
+}
+
+model Inscripcion {
+  id          Int      @id @default(autoincrement())
+  claseId     Int
+  clienteId   Int
+  fecha       DateTime
+  estado      EstadoInscripcion @default(confirmada)
+  createdAt   DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  clase   Clase   @relation(fields: [claseId], references: [id])
+}
+
+model Asistencia {
+  id          Int      @id @default(autoincrement())
+  claseId     Int
+  clienteId   Int
+  registradoPor Int
+  fechaEntrada       DateTime @default(now())
+  fechaSalida        DateTime?
+  createdAt   DateTime @default(now())
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+  registrador Usuario @relation(fields: [registradoPor], references: [id])
+}
