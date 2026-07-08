@@ -47,15 +47,24 @@ async function main() {
   // ─── 3. Buscamos el primer cliente que exista ──────────────
   // findFirst trae el primer registro que cumpla la condición
   // (en este caso no ponemos condición, así que trae el primero que haya)
-  const cliente = await prisma.cliente.findFirst({
+  let cliente = await prisma.cliente.findFirst({
     orderBy: { id: 'asc' }
   })
 
   if (!cliente) {
-    console.log('⚠️  No hay ningún cliente creado todavía. Creá uno desde la app antes de correr este seed completo.')
-    return
+    console.log('⚠️ No hay ningún cliente creado todavía. Creando uno de prueba...')
+    cliente = await prisma.cliente.create({
+      data: {
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        dni: '12345678',
+        email: 'juan.perez@example.com',
+        telefono: '1122334455',
+        activo: true
+      }
+    })
   }
-  console.log('ℹ️  Usando cliente existente:', cliente.nombre, cliente.apellido)
+  console.log('ℹ️  Usando cliente:', cliente.nombre, cliente.apellido)
 
   // ─── 4. Crear un plan (NUEVO) ──────────────
   const plan = await prisma.plan.upsert({
@@ -101,8 +110,19 @@ async function main() {
   console.log('✅ Pago registrado:', pago.monto, '— medio:', pago.medioPago)
 
   // ─── 7. Crear una clase de prueba (NUEVO) ──────────────
-  const clase = await prisma.clase.create({
-    data: {
+  const clase = await prisma.clase.upsert({
+    where: { id: 1 },
+    update: {
+      nombre: 'Musculación',
+      descripcion: 'Entrenamiento con pesas y máquinas.',
+      instructorId: entrenador.id,
+      diaSemana: 'lunes',
+      horaInicio: '08:00',
+      horaFin: '09:00',
+      capacidadMaxima: 20,
+      activa: true
+    },
+    create: {
       nombre: 'Musculación',
       descripcion: 'Entrenamiento con pesas y máquinas.',
       instructorId: entrenador.id,
