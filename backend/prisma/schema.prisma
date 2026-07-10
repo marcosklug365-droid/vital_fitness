@@ -126,6 +126,7 @@ model Clase {
 
   instructor Usuario @relation(fields: [instructorId], references: [id])
   inscripciones Inscripcion[]
+  asistencias Asistencia[]
 }
 
 model Inscripcion {
@@ -142,13 +143,14 @@ model Inscripcion {
 
 model Asistencia {
   id          Int      @id @default(autoincrement())
-  claseId     Int
+  claseId     Int?
   clienteId   Int
   registradoPor Int
   fechaEntrada       DateTime @default(now())
   fechaSalida        DateTime?
   createdAt   DateTime @default(now())
 
+  clase Clase? @relation(fields: [claseId], references: [id])
   cliente Cliente @relation(fields: [clienteId], references: [id])
   registrador Usuario @relation(fields: [registradoPor], references: [id])
 }

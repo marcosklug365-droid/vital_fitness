@@ -1,4 +1,4 @@
-import api from './api.js'
+import api from './Api.js'
 
 export const getPagosService = async (filtros = {}) => {
   const response = await api.get('/pagos', { params: filtros })

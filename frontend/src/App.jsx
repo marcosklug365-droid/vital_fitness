@@ -12,11 +12,26 @@ import Membresias from './pages/Membresias'
 import Pagos from './pages/Pagos'
 import Clases from './pages/Clases'
 import Asistencias from './pages/Asistencias'
+import InscripcionWizard from './pages/InscripcionWizard'
+import { Toaster } from './components/ui/sonner'
+import { toast } from 'sonner'
+import { useEffect } from 'react'
 
 function App() {
+  useEffect(() => {
+    const handleToastError = (event) => {
+      toast.error(event.detail)
+    }
+    document.addEventListener('toast-error', handleToastError)
+    return () => {
+      document.removeEventListener('toast-error', handleToastError)
+    }
+  }, [])
+
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Toaster />
         <Routes>
 
           {/* Ruta pública: no requiere login */}
@@ -31,13 +46,19 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/dashboard"           element={<Dashboard />} />
+              <Route path="/inscripcion"         element={<InscripcionWizard />} />
               <Route path="/clientes"            element={<Clientes />} />
               <Route path="/clientes/:id"        element={<ClienteDetalle />} />
               <Route path="/clientes/nuevo"      element={<ClienteFormulario />} />
               <Route path="/clientes/editar/:id" element={<ClienteFormulario />} />
-              <Route path="/planes"              element={<Planes />} />
-              <Route path="/membresias"          element={<Membresias />} />
-              <Route path="/pagos"               element={<Pagos />} />
+
+              {/* Rutas exclusivas para el dueño */}
+              <Route element={<ProtectedRoute roles={['dueno']} />}>
+                <Route path="/planes"              element={<Planes />} />
+                <Route path="/membresias"          element={<Membresias />} />
+                <Route path="/pagos"               element={<Pagos />} />
+              </Route>
+
               <Route path="/clases"              element={<Clases />} />
               <Route path="/asistencias"         element={<Asistencias />} />
             </Route>

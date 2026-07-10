@@ -1,4 +1,4 @@
-import api from './Api'
+import api from './Api.js'
 
 // Función para hacer login
 // Recibe email y password, llama al backend y devuelve token + usuario

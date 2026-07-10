@@ -1,4 +1,4 @@
-import api from './api.js'
+import api from './Api.js'
 
 export const getClientesService = async (filtro = '', busqueda = '') => {
   const response = await api.get('/clientes', {
@@ -25,4 +25,17 @@ export const updateClienteService = async (id, datos) => {
 export const deleteClienteService = async (id) => {
   const response = await api.delete(`/clientes/${id}`)
   return response.data
+}
+
+/**
+ * Busca un cliente por DNI de forma exacta.
+ * Retorna el cliente si existe, o null si no hay coincidencia.
+ * Usado por el Wizard de Inscripción para detectar clientes duplicados.
+ */
+export const buscarClientePorDniService = async (dni) => {
+  const response = await api.get('/clientes', {
+    params: { busqueda: dni, exacto: 'true' }
+  })
+  // El backend devuelve un array; tomamos el primer elemento o null
+  return response.data.length > 0 ? response.data[0] : null
 }

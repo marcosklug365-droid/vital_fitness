@@ -1,4 +1,4 @@
-import api from './api.js'
+import api from './Api.js'
 
 export const createInscripcionService = async (datos) => {
   const response = await api.post('/inscripciones', datos)

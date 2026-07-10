@@ -3,18 +3,23 @@ import { prisma } from '../lib/prisma.js'
 // ─── OBTENER TODOS LOS CLIENTES ──────────────────────────────────
 export const getClientes = async (req, res) => {
   try {
-    const { filtro, busqueda } = req.query
+    const { filtro, busqueda, exacto } = req.query
 
     // Construimos el filtro de búsqueda dinámicamente
     let where = {}
 
     // Filtro por texto: busca en nombre, apellido o DNI
     if (busqueda) {
-      where.OR = [
-        { nombre:   { contains: busqueda, mode: 'insensitive' } },
-        { apellido: { contains: busqueda, mode: 'insensitive' } },
-        { dni:      { contains: busqueda, mode: 'insensitive' } },
-      ]
+      if (exacto === 'true') {
+        // Búsqueda exacta por DNI (usada por el Wizard de Inscripción para detectar clientes existentes)
+        where.dni = busqueda
+      } else {
+        where.OR = [
+          { nombre:   { contains: busqueda, mode: 'insensitive' } },
+          { apellido: { contains: busqueda, mode: 'insensitive' } },
+          { dni:      { contains: busqueda, mode: 'insensitive' } },
+        ]
+      }
     }
 
     // Filtro por estado
@@ -222,7 +227,7 @@ export const updateCliente = async (req, res) => {
   }
 }
 
-// ─── ELIMINAR UN CLIENTE ──────────────────────────────────────────
+// ─── ELIMINAR UN CLIENTE (BORRADO LÓGICO) ─────────────────────────
 export const deleteCliente = async (req, res) => {
   try {
     const { id } = req.params
@@ -235,7 +240,11 @@ export const deleteCliente = async (req, res) => {
       return res.status(404).json({ error: 'Cliente no encontrado' })
     }
 
-    await prisma.cliente.delete({ where: { id: parseInt(id) } })
+    // Borrado lógico: cambiamos activo a false en vez de borrar el registro físico
+    await prisma.cliente.update({ 
+      where: { id: parseInt(id) },
+      data: { activo: false }
+    })
 
     res.json({ mensaje: 'Cliente eliminado correctamente' })
 

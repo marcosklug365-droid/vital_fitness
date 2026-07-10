@@ -112,11 +112,11 @@ function Clientes() {
         </div>
         {esDueno && (
           <button
-            onClick={() => navigate('/clientes/nuevo')}
-            className="flex items-center gap-2 bg-[#AAFF00] text-black font-bold px-4 py-2 rounded-lg hover:bg-[#99ee00] transition-colors"
+            onClick={() => navigate('/inscripcion')}
+            className="flex items-center gap-2 bg-primary text-primary-foreground font-bold px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(170,255,0,0.2)]"
           >
             <Plus size={16} />
-            Agregar cliente
+            Nueva Inscripción
           </button>
         )}
       </div>
