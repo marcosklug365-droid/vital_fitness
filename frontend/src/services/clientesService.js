@@ -39,3 +39,8 @@ export const buscarClientePorDniService = async (dni) => {
   // El backend devuelve un array; tomamos el primer elemento o null
   return response.data.length > 0 ? response.data[0] : null
 }
+
+export const generarCredencialesWebService = async (id) => {
+  const response = await api.post(`/clientes/${id}/credenciales`)
+  return response.data
+}

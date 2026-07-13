@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useAforo } from '../hooks/useAforo'
-import { getDashboardService } from '../services/dashboardService'
+import { getDashboardService, getMetricasGraficosService } from '../services/dashboardService'
 import { registrarSalidaService } from '../services/asistenciasService'
+import GraficoIngresos from '../components/dashboard/GraficoIngresos'
+import GraficoAsistencia from '../components/dashboard/GraficoAsistencia'
 import {
   Users, AlertTriangle, CreditCard, DollarSign,
   Activity, Calendar, LogOut, LogIn, ArrowRight
@@ -37,7 +39,9 @@ function DashboardDueno() {
   const [cargando, setCargando] = useState(true)
   const navigate = useNavigate()
 
-  useEffect(() => { cargarDashboard() }, [])
+  const [metricas, setMetricas] = useState(null)
+  const [cargandoMetricas, setCargandoMetricas] = useState(true)
+  const [rangoGraficos, setRangoGraficos] = useState('6meses')
 
   const cargarDashboard = async () => {
     try {
@@ -49,6 +53,27 @@ function DashboardDueno() {
       setCargando(false)
     }
   }
+
+  const cargarMetricas = async () => {
+    try {
+      setCargandoMetricas(true)
+      const result = await getMetricasGraficosService(rangoGraficos)
+      setMetricas(result)
+    } catch (err) {
+      console.error('Error al cargar métricas de gráficos:', err)
+    } finally {
+      setCargandoMetricas(false)
+    }
+  }
+
+  useEffect(() => { 
+    cargarDashboard() 
+  }, [])
+
+  useEffect(() => {
+    cargarMetricas()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangoGraficos])
 
   if (cargando) {
     return <div className="py-16 text-center text-gray-500">Cargando dashboard...</div>
@@ -136,7 +161,7 @@ function DashboardDueno() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Alertas pendientes */}
-        <div className="lg:col-span-2 bg-[#111111] border border-[#333333] rounded-xl p-5">
+        <div className="lg:col-span-2 bg-[#111111] border border-[#333333] rounded-xl p-5 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white font-bold text-base flex items-center gap-2">
               Alertas pendientes
@@ -144,23 +169,29 @@ function DashboardDueno() {
                 {data.alertas.length}
               </span>
             </h3>
-            <button onClick={() => navigate('/membresias')} className="text-[#AAFF00] text-xs flex items-center gap-1 hover:underline">
-              Ver todas <ArrowRight size={12} />
+            <button 
+              onClick={() => navigate('/membresias')} 
+              className="bg-primary/10 text-primary hover:bg-primary/20 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors border border-primary/20"
+            >
+              Gestionar <ArrowRight size={14} />
             </button>
           </div>
 
           {data.alertas.length === 0 ? (
-            <p className="text-gray-500 text-sm py-6 text-center">No hay alertas pendientes. Todo está en orden ✅</p>
+            <p className="text-gray-500 text-sm py-6 text-center my-auto">No hay alertas pendientes. Todo está en orden ✅</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               {data.alertas.map((alerta, i) => (
                 <div
                   key={i}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg border-l-2 ${alerta.tipo === 'vencida' ? 'border-l-red-500 bg-red-500/5' : 'border-l-yellow-500 bg-yellow-500/5'
-                    }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border-l-2 ${
+                    alerta.tipo === 'vencida' 
+                      ? 'border-l-red-500 bg-red-500/5' 
+                      : 'border-l-yellow-500 bg-yellow-500/5'
+                  }`}
                 >
                   <span className="text-base">{alerta.tipo === 'vencida' ? '🔴' : '🟡'}</span>
-                  <p className="text-gray-300 text-sm">{alerta.texto}</p>
+                  <p className="text-gray-300 text-sm font-medium">{alerta.texto}</p>
                 </div>
               ))}
             </div>
@@ -193,6 +224,20 @@ function DashboardDueno() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Gráficos y Análisis Visual */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+        <GraficoIngresos 
+          data={metricas?.ingresos} 
+          cargando={cargandoMetricas} 
+          rango={rangoGraficos} 
+          setRango={setRangoGraficos} 
+        />
+        <GraficoAsistencia 
+          data={metricas?.asistencia} 
+          cargando={cargandoMetricas} 
+        />
       </div>
     </div>
   )

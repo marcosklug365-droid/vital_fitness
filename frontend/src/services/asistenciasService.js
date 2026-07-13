@@ -19,3 +19,8 @@ export const getHistorialHoyService = async () => {
   const response = await api.get('/asistencias/historial-hoy')
   return response.data
 }
+
+export const forzarEntradaService = async (clienteId, motivo) => {
+  const response = await api.post('/asistencias/forzar-entrada', { clienteId, motivo })
+  return response.data
+}

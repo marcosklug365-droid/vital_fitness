@@ -9,9 +9,13 @@ const api = axios.create({
 
 // INTERCEPTOR DE PETICIONES
 // Se ejecuta antes de que salga cualquier petición al backend
-// Agrega automáticamente el token JWT al header Authorization
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token')
+    // Si la ruta es exclusiva del portal de clientes, usamos el token_cliente
+    const isClientRoute = config.url.startsWith('/portal') || config.url.startsWith('/auth/cliente')
+    const token = isClientRoute 
+        ? localStorage.getItem('token_cliente') 
+        : localStorage.getItem('token')
+
     if (token) {
         config.headers.Authorization = `Bearer ${token}`
     }

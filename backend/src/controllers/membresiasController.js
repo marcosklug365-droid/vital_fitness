@@ -175,7 +175,7 @@ export const getMembresiasPorVencer = async (req, res) => {
     const membresias = await prisma.membresia.findMany({
       where: { estado: 'activa' },
       include: {
-        cliente: { select: { id: true, nombre: true, apellido: true, email: true } },
+        cliente: { select: { id: true, nombre: true, apellido: true, email: true, dni: true } },
         plan: true
       }
     })

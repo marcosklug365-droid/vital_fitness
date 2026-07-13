@@ -18,16 +18,40 @@ export const verificarToken = (req, res, next) => {
         const token = authHeader.split(' ')[1];
 
         // jwt.verify verifica que el token sea valido y no haya expirado
-        // Si es invalido lanza un error que atrapamos en el catch
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+        // Seguridad: Si es un token de cliente, no lo dejamos pasar por las rutas administrativas
+        if (decoded.rol === 'cliente') {
+            return res.status(403).json({ error: 'Acceso denegado. Permisos administrativos requeridos.' });
+        }
+
         // Guardamos los datos del usuario en req.usuario para que las rutas puedan acceder a ellos
-        // Para que el controller pueda usarlos despues
         req.usuario = decoded;
 
         // next() le dice a Express que puede continuar al controller correspondiente
         next();
 
+    } catch (error) {
+        return res.status(401).json({ error: 'Token inválido o expirado' });
+    }
+}
+
+// Middleware específico para rutas exclusivas de Clientes
+export const verificarTokenCliente = (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Token no proporcionado' });
+        }
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        if (decoded.rol !== 'cliente') {
+            return res.status(403).json({ error: 'Acceso denegado. Ruta exclusiva para clientes.' });
+        }
+
+        req.usuario = decoded;
+        next();
     } catch (error) {
         return res.status(401).json({ error: 'Token inválido o expirado' });
     }

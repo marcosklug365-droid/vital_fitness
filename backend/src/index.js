@@ -4,8 +4,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import { initSocket } from './lib/socket.js';
+import { initJobs } from './jobs/index.js';
 
 import authRoutes from './routes/authRoutes.js';
+import authClienteRoutes from './routes/authClienteRoutes.js';
+import portalRoutes from './routes/portalRoutes.js';
 import clientesRoutes from './routes/clientesRoutes.js';
 import planesRoutes from './routes/planesRoutes.js';
 import membresiasRoutes from './routes/membresiasRoutes.js';
@@ -14,6 +17,7 @@ import clasesRoutes from './routes/clasesRoutes.js';
 import inscripcionesRoutes from './routes/inscripcionesRoutes.js';
 import asistenciasRoutes from './routes/asistenciasRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import usuariosRoutes from './routes/usuariosRoutes.js';
 
 // Carga las variables de entorno desde el archivo .env
 dotenv.config();
@@ -36,6 +40,8 @@ app.get('/', (req, res) => {
 // Rutas de la API
 // Todo lo que empiece con /api/auth va al authRoutes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/cliente', authClienteRoutes);
+app.use('/api/portal', portalRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/planes', planesRoutes);
 app.use('/api/membresias', membresiasRoutes);
@@ -44,6 +50,7 @@ app.use('/api/clases', clasesRoutes);
 app.use('/api/inscripciones', inscripcionesRoutes);
 app.use('/api/asistencias', asistenciasRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 // Creamos el servidor HTTP sobre la aplicación de Express.
 // Esto permite que Express y Socket.io compartan el mismo puerto.
 const httpServer = createServer(app);
@@ -52,6 +59,7 @@ const httpServer = createServer(app);
 initSocket(httpServer);
 
 // Arranca el servidor HTTP (Express + Socket.io)
+initJobs();
 httpServer.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
   console.log('Socket.io listo para conexiones en tiempo real ⚡');

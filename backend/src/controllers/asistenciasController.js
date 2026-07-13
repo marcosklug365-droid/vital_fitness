@@ -60,6 +60,19 @@ export const registrarEntrada = async (req, res) => {
             })
         }
 
+        // 1. Verificamos si tiene membresía y si está activa
+        const membresia = cliente.membresias[0]
+        
+        if (!membresia) {
+            return res.status(403).json({ error: 'ACCESO DENEGADO: El cliente no posee ninguna membresía registrada.' })
+        }
+
+        const estaVencida = membresia.estado === 'vencida' || new Date(membresia.fechaVencimiento) < new Date()
+        if (estaVencida) {
+            return res.status(403).json({ error: 'ACCESO DENEGADO: Membresía vencida. Diríjase a recepción.' })
+        }
+
+        // Si la membresía está activa y no está vencida, permitimos el ingreso
         const asistencia = await prisma.asistencia.create({
             data: {
                 clienteId: parseInt(clienteId),
@@ -81,14 +94,7 @@ export const registrarEntrada = async (req, res) => {
             hora: asistencia.fechaEntrada
         })
 
-        // Calculamos si la membresía está vencida, para avisarle al frontend
-        const membresia = cliente.membresias[0]
-        let membresiaVencida = false
-        if (membresia) {
-            membresiaVencida = new Date(membresia.fechaVencimiento) < new Date()
-        }
-
-        res.status(201).json({ asistencia, ocupados, membresiaVencida })
+        res.status(201).json({ asistencia, ocupados, membresiaVencida: false })
 
     } catch (error) {
         console.error('Error al registrar entrada:', error)
@@ -125,6 +131,78 @@ export const registrarSalida = async (req, res) => {
 
     } catch (error) {
         console.error('Error al registrar salida:', error)
+        res.status(500).json({ error: 'Error interno del servidor' })
+    }
+}
+
+// ─── TAREA F4-2: FORZAR INGRESO (OVERRIDE) ──────────────────
+/**
+ * Permite a un miembro del staff autorizar el ingreso manual de un cliente
+ * que tiene su membresía vencida (por ejemplo, si prometió pagar mañana).
+ * 
+ * Esta operación es CRÍTICA y debe ser atómica:
+ * 1. Registra el motivo en la tabla de Auditoría para evitar fraudes.
+ * 2. Registra la Asistencia real para que Socket.io actualice el aforo.
+ * Todo esto ocurre dentro de una transacción de Prisma. Si una falla, ambas fallan.
+ */
+export const forzarIngreso = async (req, res) => {
+    try {
+        const { clienteId, motivo } = req.body
+        const usuarioId = req.usuario.id // Middleware verificarToken
+
+        if (!clienteId || !motivo) {
+            return res.status(400).json({ error: 'El clienteId y el motivo son obligatorios para forzar el ingreso.' })
+        }
+
+        const cliente = await prisma.cliente.findUnique({ where: { id: parseInt(clienteId) } })
+        
+        if (!cliente) {
+            return res.status(404).json({ error: 'Cliente no encontrado' })
+        }
+
+        // 1. Evitamos que un cliente quede "duplicado" adentro
+        const yaAdentro = await prisma.asistencia.findFirst({
+            where: { clienteId: parseInt(clienteId), fechaSalida: null }
+        })
+
+        if (yaAdentro) {
+            return res.status(400).json({
+                error: `${cliente.nombre} ya tiene una entrada registrada sin salida. Registrá su salida primero.`
+            })
+        }
+
+        // 2. Transacción: Creamos auditoría y asistencia al mismo tiempo
+        const [auditoria, asistencia] = await prisma.$transaction([
+            prisma.auditoriaAcceso.create({
+                data: {
+                    clienteId: parseInt(clienteId),
+                    autorizadoPor: usuarioId,
+                    motivo: motivo
+                }
+            }),
+            prisma.asistencia.create({
+                data: {
+                    clienteId: parseInt(clienteId),
+                    registradoPor: usuarioId,
+                    fechaEntrada: new Date()
+                }
+            })
+        ])
+
+        // 3. Calculamos nuevo aforo y emitimos por socket
+        const ocupados = await prisma.asistencia.count({ where: { fechaSalida: null } })
+        const io = getIO()
+        io.emit('aforo-actualizado', {
+            ocupados,
+            evento: 'entrada',
+            cliente: `${cliente.nombre} ${cliente.apellido}`,
+            hora: asistencia.fechaEntrada
+        })
+
+        res.status(201).json({ asistencia, auditoria, ocupados })
+
+    } catch (error) {
+        console.error('Error al forzar ingreso:', error)
         res.status(500).json({ error: 'Error interno del servidor' })
     }
 }

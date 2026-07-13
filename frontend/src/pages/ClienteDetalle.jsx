@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getClienteByIdService } from '../services/clientesService'
 import {
   ArrowLeft,
   Pencil,
@@ -12,8 +11,12 @@ import {
   AlertCircle,
   CreditCard,
   DollarSign,
-  Clock
+  Clock,
+  Unlock,
+  KeyRound
 } from 'lucide-react'
+import { forzarEntradaService } from '../services/asistenciasService'
+import { getClienteByIdService, generarCredencialesWebService } from '../services/clientesService'
 
 // ─── Helpers de formato ───────────────────────────────
 function formatearFecha(fecha) {
@@ -76,9 +79,18 @@ function ClienteDetalle() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    cargarCliente()
-  }, [id])
+  // Modal Forzar Ingreso
+  const [mostrarModalForzar, setMostrarModalForzar] = useState(false)
+  const [motivoForzar, setMotivoForzar] = useState('')
+  const [forzando, setForzando] = useState(false)
+  const [errorForzar, setErrorForzar] = useState('')
+  const [exitoForzar, setExitoForzar] = useState('')
+
+  // Modal Generar Credenciales
+  const [mostrarModalCredenciales, setMostrarModalCredenciales] = useState(false)
+  const [generandoCredenciales, setGenerandoCredenciales] = useState(false)
+  const [passwordTemporal, setPasswordTemporal] = useState('')
+  const [errorCredenciales, setErrorCredenciales] = useState('')
 
   const cargarCliente = async () => {
     try {
@@ -86,11 +98,54 @@ function ClienteDetalle() {
       const data = await getClienteByIdService(id)
       setCliente(data)
     } catch (err) {
+      console.error(err)
       setError('No se pudo cargar la información del cliente')
     } finally {
       setCargando(false)
     }
   }
+
+  const handleGenerarCredenciales = async () => {
+    try {
+      setGenerandoCredenciales(true)
+      setErrorCredenciales('')
+      const res = await generarCredencialesWebService(cliente.id)
+      setPasswordTemporal(res.passwordTemporal)
+      cargarCliente() // Refresca para mostrar que ya tiene acceso habilitado
+    } catch (err) {
+      setErrorCredenciales(err.response?.data?.error || 'Error al generar credenciales')
+    } finally {
+      setGenerandoCredenciales(false)
+    }
+  }
+
+  const handleForzarIngreso = async (e) => {
+    e.preventDefault()
+    if (!motivoForzar.trim()) return
+
+    try {
+      setForzando(true)
+      setErrorForzar('')
+      await forzarEntradaService(cliente.id, motivoForzar)
+      setExitoForzar('Ingreso forzado registrado correctamente.')
+      setTimeout(() => {
+        setMostrarModalForzar(false)
+        setMotivoForzar('')
+        setExitoForzar('')
+        cargarCliente() // Recargar para actualizar asistencia
+      }, 2000)
+    } catch (err) {
+      setErrorForzar(err.response?.data?.error || 'Error al forzar ingreso')
+    } finally {
+      setForzando(false)
+    }
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarCliente()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   if (cargando) {
     return (
@@ -154,16 +209,155 @@ function ClienteDetalle() {
           </div>
         </div>
 
-        {esDueno && (
+        <div className="flex gap-2">
+          {esDueno && (
+            <button
+              onClick={() => setMostrarModalCredenciales(true)}
+              className="flex items-center gap-2 border border-[#AAFF00]/50 text-[#AAFF00] px-4 py-2 rounded-lg hover:bg-[#AAFF00]/10 transition-colors text-sm"
+            >
+              <KeyRound size={14} />
+              {cliente.accesoWebEnabled ? 'Restablecer Acceso' : 'Generar Acceso'}
+            </button>
+          )}
+
           <button
-            onClick={() => navigate(`/clientes/editar/${cliente.id}`)}
-            className="flex items-center gap-2 border border-[#333333] text-white px-4 py-2 rounded-lg hover:border-[#AAFF00] transition-colors text-sm"
+            onClick={() => setMostrarModalForzar(true)}
+            className="flex items-center gap-2 border border-red-500/50 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-sm"
           >
-            <Pencil size={14} />
-            Editar cliente
+            <Unlock size={14} />
+            Forzar Ingreso
           </button>
-        )}
+          
+          {esDueno && (
+            <button
+              onClick={() => navigate(`/clientes/editar/${cliente.id}`)}
+              className="flex items-center gap-2 border border-[#333333] text-white px-4 py-2 rounded-lg hover:border-[#AAFF00] transition-colors text-sm"
+            >
+              <Pencil size={14} />
+              Editar
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* MODAL FORZAR INGRESO */}
+      {mostrarModalForzar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-[#111111] border border-red-500/30 rounded-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-[#333333]">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Unlock className="text-red-400" /> Forzar Ingreso
+              </h3>
+              <p className="text-gray-400 text-sm mt-1">
+                Vas a autorizar el ingreso manual de {cliente.nombre}. Esto quedará registrado en la auditoría.
+              </p>
+            </div>
+            <form onSubmit={handleForzarIngreso} className="p-6 space-y-4">
+              {errorForzar && (
+                <div className="bg-red-500/10 border border-red-500/50 text-red-500 text-sm p-3 rounded-lg">
+                  {errorForzar}
+                </div>
+              )}
+              {exitoForzar && (
+                <div className="bg-[#AAFF00]/10 border border-[#AAFF00]/50 text-[#AAFF00] text-sm p-3 rounded-lg">
+                  {exitoForzar}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Motivo de autorización</label>
+                <textarea
+                  value={motivoForzar}
+                  onChange={(e) => setMotivoForzar(e.target.value)}
+                  placeholder="Ej: Se olvidó la billetera, paga mañana..."
+                  className="w-full bg-[#1a1a1a] border border-[#333333] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-400 h-24 resize-none"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalForzar(false)}
+                  className="flex-1 bg-[#1a1a1a] text-white border border-[#333333] py-3 rounded-lg font-bold hover:bg-[#222222] transition-colors"
+                  disabled={forzando}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={forzando || !motivoForzar.trim()}
+                  className="flex-1 bg-red-500 text-white py-3 rounded-lg font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {forzando ? 'Procesando...' : 'Autorizar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GENERAR CREDENCIALES */}
+      {mostrarModalCredenciales && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-[#111111] border border-[#AAFF00]/30 rounded-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-[#333333]">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <KeyRound className="text-[#AAFF00]" /> {cliente.accesoWebEnabled ? 'Restablecer Acceso Web' : 'Generar Acceso Web'}
+              </h3>
+              <p className="text-gray-400 text-sm mt-1">
+                Esto generará una nueva contraseña temporal para que {cliente.nombre} pueda iniciar sesión en el portal de clientes.
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              {errorCredenciales && (
+                <div className="bg-red-500/10 border border-red-500/50 text-red-500 text-sm p-3 rounded-lg">
+                  {errorCredenciales}
+                </div>
+              )}
+              
+              {passwordTemporal ? (
+                <div className="text-center space-y-4">
+                  <p className="text-gray-300 text-sm">Entregale estos datos al cliente:</p>
+                  <div className="bg-[#1a1a1a] border border-[#333333] p-4 rounded-lg inline-block text-left w-full">
+                    <p className="text-gray-400 text-xs mb-1">Usuario (DNI):</p>
+                    <p className="text-white font-mono text-lg mb-3">{cliente.dni}</p>
+                    <p className="text-gray-400 text-xs mb-1">Contraseña Temporal:</p>
+                    <p className="text-[#AAFF00] font-mono text-2xl font-bold tracking-widest">{passwordTemporal}</p>
+                  </div>
+                  <p className="text-yellow-500 text-xs font-semibold">
+                    Atención: Esta contraseña solo se mostrará una vez. Al ingresar, el sistema le obligará a cambiarla.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setMostrarModalCredenciales(false)
+                      setPasswordTemporal('')
+                    }}
+                    className="w-full bg-[#AAFF00] text-black py-3 rounded-lg font-bold hover:bg-[#99e600] transition-colors"
+                  >
+                    Aceptar
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setMostrarModalCredenciales(false)}
+                    className="flex-1 bg-[#1a1a1a] text-white border border-[#333333] py-3 rounded-lg font-bold hover:bg-[#222222] transition-colors"
+                    disabled={generandoCredenciales}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleGenerarCredenciales}
+                    disabled={generandoCredenciales}
+                    className="flex-1 bg-[#AAFF00] text-black py-3 rounded-lg font-bold hover:bg-[#99e600] transition-colors disabled:opacity-50"
+                  >
+                    {generandoCredenciales ? 'Generando...' : 'Generar Credenciales'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contenido en dos columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -241,9 +435,19 @@ function ClienteDetalle() {
 
           {/* Membresía activa */}
           <div className="bg-[#111111] border border-[#333333] rounded-xl p-6">
-            <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
-              🎫 Membresía {membresiaActiva ? 'activa' : ''}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-bold text-base flex items-center gap-2">
+                🎫 Membresía {membresiaActiva ? 'activa' : ''}
+              </h3>
+              {(cliente.estado === 'vencido' || cliente.estado === 'por_vencer' || cliente.estado === 'sin_membresia') && (
+                <button
+                  onClick={() => navigate(`/inscripcion?dni=${cliente.dni}`)}
+                  className="bg-[#AAFF00] text-black font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-[#99ee00] transition-colors"
+                >
+                  Renovar Membresía
+                </button>
+              )}
+            </div>
 
             {membresiaActiva ? (
               <>
@@ -286,6 +490,41 @@ function ClienteDetalle() {
               </>
             ) : (
               <p className="text-gray-500 text-sm">Este cliente no tiene una membresía asignada.</p>
+            )}
+          </div>
+
+          {/* Historial de membresías */}
+          <div className="bg-[#111111] border border-[#333333] rounded-xl p-6">
+            <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+              <Calendar size={16} className="text-[#AAFF00]" />
+              Historial de membresías
+            </h3>
+
+            {cliente.membresias?.length > 1 ? (
+              <div className="space-y-1">
+                {cliente.membresias.slice(1, 6).map((mem) => (
+                  <div
+                    key={mem.id}
+                    className="flex items-center justify-between py-2.5 border-b border-[#1a1a1a] last:border-0"
+                  >
+                    <div>
+                      <span className="text-[#AAFF00] font-semibold text-sm block">
+                        {mem.plan?.nombre}
+                      </span>
+                      <span className="text-gray-500 text-xs">
+                        {formatearFecha(mem.fechaInicio)} — {formatearFecha(mem.fechaVencimiento)}
+                      </span>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-md capitalize font-semibold ${
+                      mem.estado === 'vencida' ? 'bg-red-500/20 text-red-400' : 'bg-gray-800 text-gray-400'
+                    }`}>
+                      {mem.estado}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">No hay membresías anteriores registradas.</p>
             )}
           </div>
 

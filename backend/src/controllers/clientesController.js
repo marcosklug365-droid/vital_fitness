@@ -253,3 +253,49 @@ export const deleteCliente = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 }
+
+// ─── GENERAR / RESTABLECER ACCESO WEB ─────────────────────────────
+import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
+
+export const generarCredencialesWeb = async (req, res) => {
+  try {
+    const { id } = req.params
+    const clienteId = parseInt(id)
+
+    const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } })
+    if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' })
+
+    // 1. Generar contraseña aleatoria de 8 caracteres (mayúsculas, minúsculas y números)
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    let rawPassword = ''
+    for (let i = 0; i < 8; i++) {
+      const randomIndex = crypto.randomInt(0, charset.length)
+      rawPassword += charset[randomIndex]
+    }
+
+    // 2. Hashear la contraseña
+    const saltRounds = 10
+    const hashedPassword = await bcrypt.hash(rawPassword, saltRounds)
+
+    // 3. Actualizar el cliente en Prisma
+    await prisma.cliente.update({
+      where: { id: clienteId },
+      data: {
+        password: hashedPassword,
+        requiereCambioPassword: true,
+        accesoWebEnabled: true
+      }
+    })
+
+    // 4. Devolver la contraseña en texto plano (SOLO ESTA VEZ) para que el staff se la dé al cliente
+    res.json({ 
+      mensaje: 'Credenciales generadas correctamente',
+      passwordTemporal: rawPassword
+    })
+
+  } catch (error) {
+    console.error('Error al generar credenciales:', error)
+    res.status(500).json({ error: 'Error interno del servidor al generar credenciales' })
+  }
+}

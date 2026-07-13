@@ -27,7 +27,7 @@ export const getDashboard = async (req, res) => {
       // Todas las membresías activas, para calcular morosos y por vencer
       prisma.membresia.findMany({
         where: { estado: 'activa' },
-        include: { cliente: { select: { nombre: true, apellido: true } } }
+        include: { cliente: { select: { nombre: true, apellido: true, dni: true } } }
       }),
 
       // Ingresos del mes
@@ -65,12 +65,14 @@ export const getDashboard = async (req, res) => {
         clientesMorosos++
         alertas.push({
           tipo: 'vencida',
+          dni: m.cliente.dni,
           texto: `${m.cliente.nombre} ${m.cliente.apellido} — Membresía vencida hace ${Math.abs(diasRestantes)} días`
         })
       } else if (diasRestantes <= 3) {
         membresiasPorVencer++
         alertas.push({
           tipo: 'por_vencer',
+          dni: m.cliente.dni,
           texto: `${m.cliente.nombre} ${m.cliente.apellido} — Vence en ${diasRestantes} día(s)`
         })
       }
@@ -108,5 +110,104 @@ export const getDashboard = async (req, res) => {
   } catch (error) {
     console.error('Error al obtener dashboard:', error)
     res.status(500).json({ error: 'Error interno del servidor' })
+  }
+}
+
+// ─── TAREA F3-3: Gráficos y Métricas ──────────────────────────
+export const getMetricasGraficos = async (req, res) => {
+  try {
+    const { rango = '6meses' } = req.query
+    const hoy = new Date()
+    const startDate = new Date(hoy)
+    let previousStartDate = new Date(hoy)
+
+    if (rango === '30dias') {
+      startDate.setDate(startDate.getDate() - 30)
+      previousStartDate.setDate(startDate.getDate() - 30)
+    } else if (rango === '1anio') {
+      startDate.setFullYear(startDate.getFullYear() - 1)
+      previousStartDate.setFullYear(startDate.getFullYear() - 1)
+    } else { // 6 meses por defecto
+      startDate.setMonth(startDate.getMonth() - 6)
+      previousStartDate.setMonth(startDate.getMonth() - 6)
+    }
+
+    const [pagosActuales, pagosAnteriores, asistenciasActuales] = await Promise.all([
+      prisma.pago.findMany({
+        where: { fechaPago: { gte: startDate } },
+        select: { monto: true, fechaPago: true }
+      }),
+      prisma.pago.aggregate({
+        where: { fechaPago: { gte: previousStartDate, lt: startDate } },
+        _sum: { monto: true }
+      }),
+      prisma.asistencia.findMany({
+        where: { fechaEntrada: { gte: startDate } },
+        select: { fechaEntrada: true }
+      })
+    ])
+
+    // --- PROCESAR INGRESOS ---
+    const totalIngresos = pagosActuales.reduce((sum, p) => sum + Number(p.monto), 0)
+    const totalAnterior = Number(pagosAnteriores._sum.monto || 0)
+    const variacion = totalAnterior > 0
+      ? Math.round(((totalIngresos - totalAnterior) / totalAnterior) * 100)
+      : 100
+
+    // Agrupar ingresos
+    const ingresosMap = new Map() // clave -> valor
+    
+    pagosActuales.forEach(p => {
+      let clave
+      if (rango === '30dias') {
+        // Para 30 días, agrupar por día "DD/MM"
+        clave = p.fechaPago.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+      } else {
+        // Para meses, agrupar por "Mes" (Ej: "Ene", "Feb")
+        clave = p.fechaPago.toLocaleDateString('es-AR', { month: 'short' })
+        clave = clave.charAt(0).toUpperCase() + clave.slice(1) // Capitalizar
+      }
+      ingresosMap.set(clave, (ingresosMap.get(clave) || 0) + Number(p.monto))
+    })
+
+    const ingresosTendencia = Array.from(ingresosMap, ([label, total]) => ({ label, total }))
+    
+    // --- PROCESAR ASISTENCIAS ---
+    // Agrupar por hora (0 a 23)
+    const asistenciasMap = new Array(24).fill(0)
+    let horaPico = 0
+    let maximaAsistencia = 0
+
+    asistenciasActuales.forEach(a => {
+      const hora = a.fechaEntrada.getHours()
+      asistenciasMap[hora]++
+      
+      if (asistenciasMap[hora] > maximaAsistencia) {
+        maximaAsistencia = asistenciasMap[hora]
+        horaPico = hora
+      }
+    })
+
+    const asistenciasPorHora = asistenciasMap.map((total, hora) => ({
+      hora: `${hora}:00`,
+      total
+    }))
+
+    res.json({
+      ingresos: {
+        totalPeriodo: totalIngresos,
+        variacion,
+        tendencia: ingresosTendencia
+      },
+      asistencia: {
+        horaPico: `${horaPico}:00`,
+        maximaAsistencia,
+        porHora: asistenciasPorHora
+      }
+    })
+
+  } catch (error) {
+    console.error('Error al obtener métricas:', error)
+    res.status(500).json({ error: 'Error al obtener métricas' })
   }
 }

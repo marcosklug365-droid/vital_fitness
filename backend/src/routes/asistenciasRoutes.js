@@ -3,7 +3,8 @@ import {
     getAforo,
     registrarEntrada,
     registrarSalida,
-    getHistorialHoy
+    getHistorialHoy,
+    forzarIngreso
 } from '../controllers/asistenciasController.js'
 import { verificarToken } from '../middlewares/authMiddleware.js'
 
@@ -15,6 +16,7 @@ router.use(verificarToken)
 router.get('/aforo', getAforo)
 router.get('/historial-hoy', getHistorialHoy)
 router.post('/entrada', registrarEntrada)
+router.post('/forzar-entrada', forzarIngreso)
 router.put('/salida/:id', registrarSalida)
 
 export default router

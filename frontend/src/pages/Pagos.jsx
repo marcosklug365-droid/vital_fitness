@@ -294,43 +294,53 @@ function Pagos() {
       {/* Encabezado */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-white font-bold text-2xl">Pagos e ingresos</h2>
-          <p className="text-gray-500 text-sm mt-1">Registros de cobros y resumen financiero</p>
+          <h2 className="text-white font-bold text-2xl flex items-center gap-2">
+            <DollarSign className="text-primary" /> Flujo de Caja
+          </h2>
+          <p className="text-gray-500 text-sm mt-1">Panel financiero, ingresos y métricas</p>
         </div>
         <button
           onClick={() => setMostrarModal(true)}
-          className="flex items-center gap-2 bg-[#AAFF00] text-black font-bold px-4 py-2 rounded-lg hover:bg-[#99ee00] transition-colors"
+          className="flex items-center gap-2 border border-[#333333] text-white font-bold px-4 py-2 rounded-lg hover:border-primary transition-colors text-sm"
         >
           <Plus size={16} />
-          Registrar pago
+          Ingreso Manual
         </button>
       </div>
 
       {/* Tarjetas de resumen */}
       {resumen && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#111111] border border-[#333333] rounded-xl p-5">
-            <p className="text-gray-500 text-xs uppercase font-semibold mb-2">Hoy</p>
-            <p className="text-[#AAFF00] font-bold text-2xl">{formatearMonto(resumen.hoy.total)}</p>
-            <p className="text-gray-500 text-xs mt-1">{resumen.hoy.cantidadPagos} pagos registrados</p>
+          <div className="bg-[#111111] border border-[#333333] rounded-xl p-5 relative overflow-hidden group hover:border-primary/50 transition-colors">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-primary/20 transition-colors"></div>
+            <p className="text-gray-500 text-xs uppercase font-semibold mb-2 relative z-10">Hoy</p>
+            <p className="text-primary font-bold text-2xl relative z-10">{formatearMonto(resumen.hoy.total)}</p>
+            <p className="text-gray-500 text-xs mt-1 relative z-10">{resumen.hoy.cantidadPagos} cobros</p>
           </div>
+          
           <div className="bg-[#111111] border border-[#333333] rounded-xl p-5">
             <p className="text-gray-500 text-xs uppercase font-semibold mb-2">Esta semana</p>
             <p className="text-white font-bold text-2xl">{formatearMonto(resumen.semana.total)}</p>
+            <p className="text-gray-500 text-xs mt-1">{resumen.semana.cantidadPagos} cobros</p>
           </div>
+          
           <div className="bg-[#111111] border border-[#333333] rounded-xl p-5">
             <p className="text-gray-500 text-xs uppercase font-semibold mb-2">Este mes</p>
             <p className="text-white font-bold text-2xl">{formatearMonto(resumen.mes.total)}</p>
             {resumen.mes.variacionPorcentual !== null && (
-              <p className={`text-xs mt-1 ${resumen.mes.variacionPorcentual >= 0 ? 'text-[#AAFF00]' : 'text-red-400'}`}>
+              <p className={`text-xs mt-1 font-medium flex items-center gap-1 ${resumen.mes.variacionPorcentual >= 0 ? 'text-primary' : 'text-red-400'}`}>
                 {resumen.mes.variacionPorcentual >= 0 ? '↑' : '↓'} {Math.abs(resumen.mes.variacionPorcentual)}% vs mes anterior
               </p>
             )}
           </div>
-          <div className="bg-[#111111] border border-[#333333] rounded-xl p-5 relative">
-            <p className="text-gray-500 text-xs uppercase font-semibold mb-2">Morosos</p>
-            <p className="text-red-400 font-bold text-2xl">{resumen.morosos.cantidad}</p>
-            <p className="text-red-400 text-xs mt-1">{formatearMonto(resumen.morosos.totalAdeudado)} sin cobrar</p>
+          
+          <div className="bg-[#111111] border border-red-500/20 rounded-xl p-5 relative overflow-hidden group hover:border-red-500/50 transition-colors">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-red-500/10 transition-colors"></div>
+            <p className="text-red-400 text-xs uppercase font-semibold mb-2 relative z-10 flex items-center gap-1">
+              <AlertTriangle size={12} /> Morosos
+            </p>
+            <p className="text-white font-bold text-2xl relative z-10">{resumen.morosos.cantidad}</p>
+            <p className="text-red-400 text-xs mt-1 relative z-10">{formatearMonto(resumen.morosos.totalAdeudado)} sin cobrar</p>
           </div>
         </div>
       )}
@@ -341,20 +351,33 @@ function Pagos() {
         <div className="lg:col-span-2 bg-[#111111] border border-[#333333] rounded-xl overflow-hidden">
 
           {/* Filtros */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-[#333333]">
-            <h3 className="text-white font-bold text-base">Historial de pagos</h3>
-            <div className="flex gap-2">
-              {periodos.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => setPeriodo(p.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    periodo === p.key ? 'bg-[#AAFF00] text-black' : 'bg-[#1a1a1a] text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-5 py-4 border-b border-[#333333]">
+            <h3 className="text-white font-bold text-base">Historial de cobros</h3>
+            <div className="flex flex-wrap items-center gap-3">
+              <select 
+                value={medioPagoFiltro} 
+                onChange={(e) => setMedioPagoFiltro(e.target.value)}
+                className="bg-[#1a1a1a] border border-[#333333] text-gray-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="todos">Todos los medios</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="tarjeta_de_debito">Tarjeta de Débito</option>
+              </select>
+              
+              <div className="flex gap-1 bg-[#1a1a1a] p-1 rounded-lg border border-[#333333]">
+                {periodos.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => setPeriodo(p.key)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                      periodo === p.key ? 'bg-primary text-primary-foreground shadow-sm' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -382,7 +405,7 @@ function Pagos() {
                     </div>
                     <p className="text-white text-sm truncate">{pago.cliente.nombre} {pago.cliente.apellido}</p>
                   </div>
-                  <div className="col-span-2 flex items-center text-[#AAFF00] font-semibold text-sm">
+                  <div className="col-span-2 flex items-center text-primary font-semibold text-sm">
                     {formatearMonto(pago.monto)}
                   </div>
                   <div className="col-span-3 flex items-center gap-1.5">
@@ -418,10 +441,10 @@ function Pagos() {
                       <div key={item.medioPago}>
                         <div className="flex justify-between text-xs mb-1">
                           <span className="text-gray-400">{info.label}</span>
-                          <span className="text-white">{formatearMonto(item.total)} — {porcentaje}%</span>
+                          <span className="text-white font-medium">{formatearMonto(item.total)} <span className="text-gray-500 ml-1">{porcentaje}%</span></span>
                         </div>
                         <div className="w-full h-1.5 bg-[#0a0a0a] rounded-full overflow-hidden">
-                          <div className="h-full bg-[#AAFF00]" style={{ width: `${porcentaje}%` }}></div>
+                          <div className="h-full bg-primary" style={{ width: `${porcentaje}%` }}></div>
                         </div>
                       </div>
                     )

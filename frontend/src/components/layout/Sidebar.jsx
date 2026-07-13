@@ -9,7 +9,8 @@ import {
   DollarSign,
   Calendar,
   UserCheck,
-  LogOut
+  LogOut,
+  Shield
 } from 'lucide-react'
 
 // Links de navegación según el rol
@@ -19,6 +20,7 @@ const navDueno = [
   { path: '/planes',       label: 'Planes',             icon: ClipboardList },
   { path: '/membresias',   label: 'Membresías',         icon: CreditCard },
   { path: '/pagos',        label: 'Pagos',              icon: DollarSign },
+  { path: '/staff',        label: 'Gestión de Staff',   icon: Shield },
   { path: '/clases',       label: 'Clases',             icon: Calendar },
   { path: '/asistencias',  label: 'Asistencias y Aforo', icon: UserCheck },
 ]

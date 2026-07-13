@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -9,7 +9,7 @@ import { useBuscarCliente } from '../hooks/useBuscarCliente'
 import { getPlanesService } from '../services/planesService'
 import { inscribirClienteService } from '../services/membresiasService'
 import { formatMoney, formatDate } from '../utils/formatters'
-import { Search, UserCheck, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Search, UserCheck, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 // Pasos del Wizard
@@ -19,8 +19,10 @@ const PASO_PAGO = 3
 
 export default function InscripcionWizard() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [paso, setPaso] = useState(PASO_CLIENTE)
   const [enviando, setEnviando] = useState(false)
+  const [autoAvanzando, setAutoAvanzando] = useState(false)
   
   // Estado global del formulario
   const [formulario, setFormulario] = useState({
@@ -48,6 +50,14 @@ export default function InscripcionWizard() {
   useEffect(() => {
     setFormulario(prev => ({ ...prev, dni }))
   }, [dni])
+
+  // Inicializar DNI desde la URL (para renovaciones rápidas)
+  useEffect(() => {
+    const dniUrl = searchParams.get('dni')
+    if (dniUrl) {
+      setDni(dniUrl)
+    }
+  }, [searchParams, setDni])
 
   // Cargar planes al montar
   useEffect(() => {
@@ -77,13 +87,22 @@ export default function InscripcionWizard() {
         telefono: clienteEncontrado.telefono || '',
         email: clienteEncontrado.email || ''
       }))
+
+      // Si el cliente viene de la URL, mostramos el mensaje y avanzamos automáticamente
+      if (searchParams.get('dni') && paso === PASO_CLIENTE && !autoAvanzando) {
+        setAutoAvanzando(true)
+        setTimeout(() => {
+          setPaso(PASO_PLAN)
+          setAutoAvanzando(false)
+        }, 1500) // 1.5s de feedback visual
+      }
     } else {
       setFormulario(prev => ({
         ...prev,
         clienteId: null,
       }))
     }
-  }, [clienteEncontrado])
+  }, [clienteEncontrado, searchParams, paso, autoAvanzando])
 
   // Handlers
   const handleInputChange = (e) => {
@@ -226,15 +245,24 @@ export default function InscripcionWizard() {
                 </div>
               </div>
 
+              {/* Alerta si el cliente ya existe */}
               {clienteEncontrado && (
-                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start space-x-3">
-                  <UserCheck className="h-5 w-5 text-primary mt-0.5" />
-                  <div>
-                    <h4 className="text-primary font-medium">Cliente encontrado</h4>
-                    <p className="text-sm text-primary/80 mt-1">
-                      {clienteEncontrado.nombre} {clienteEncontrado.apellido} ya está registrado en el sistema.
-                    </p>
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start space-x-3">
+                    <UserCheck className="h-5 w-5 text-primary mt-0.5" />
+                    <div>
+                      <h4 className="text-primary font-medium">Cliente encontrado</h4>
+                      <p className="text-sm text-primary/80 mt-1">
+                        {clienteEncontrado.nombre} {clienteEncontrado.apellido} ya está registrado en el sistema.
+                      </p>
+                    </div>
                   </div>
+                  {autoAvanzando && (
+                    <div className="flex items-center gap-2 text-primary text-sm font-medium animate-pulse">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Continuando con la renovación...
+                    </div>
+                  )}
                 </div>
               )}
 
